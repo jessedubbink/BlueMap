@@ -110,17 +110,15 @@ public class Plugin implements ServerEventListener {
         loadingLock.lock();
         try {
             synchronized (this) {
-
                 if (loaded) return;
-                unload(); //ensure nothing is left running (from a failed load or something)
+                unload(); // Ensure nothing is left running from a previous load or failed load
 
-                //load addons
+                // Load addons
                 Path addonsFolder = serverInterface.getConfigFolder().resolve("addons");
                 Files.createDirectories(addonsFolder);
                 Addons.tryLoadAddons(addonsFolder, true);
-                //serverInterface.getModsFolder().ifPresent(Addons::tryLoadAddons);
 
-                //load configs
+                // Load configs
                 BlueMapConfigManager configManager = BlueMapConfigManager.builder()
                         .minecraftVersion(serverInterface.getMinecraftVersion())
                         .configRoot(serverInterface.getConfigFolder())
@@ -134,7 +132,7 @@ public class Plugin implements ServerEventListener {
                 WebappConfig webappConfig = configManager.getWebappConfig();
                 PluginConfig pluginConfig = configManager.getPluginConfig();
 
-                //apply new file-logger config
+                // Apply new file-logger config
                 if (coreConfig.getLog().getFile() != null) {
                     ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
                     Logger.global.put(DEBUG_FILE_LOG_NAME, () -> Logger.file(
@@ -145,7 +143,7 @@ public class Plugin implements ServerEventListener {
                     Logger.global.remove(DEBUG_FILE_LOG_NAME);
                 }
 
-                //load plugin state
+                // Load plugin state
                 try {
                     GsonConfigurationLoader loader = GsonConfigurationLoader.builder()
                             .path(coreConfig.getData().resolve("pluginState.json"))
@@ -156,10 +154,10 @@ public class Plugin implements ServerEventListener {
                     pluginState = new PluginState();
                 }
 
-                //create bluemap-service
+                // Create BlueMap service
                 blueMap = new BlueMapService(configManager, preloadedResourcePack);
 
-                //try load resources
+                // Try load resources
                 try {
                     blueMap.getOrLoadResourcePack();
                 } catch (MissingResourcesException ex) {
@@ -177,20 +175,20 @@ public class Plugin implements ServerEventListener {
                     return;
                 }
 
-                //load maps
+                // Load maps
                 Map<String, BmMap> maps = blueMap.getOrLoadMaps();
 
-                //create and start webserver
+                // Create and start webserver
                 if (webserverConfig.isEnabled()) {
                     Path webroot = webserverConfig.getWebroot();
                     FileHelper.createDirectories(webroot);
 
                     this.webRequestHandler = new RoutingRequestHandler();
 
-                    // default route
+                    // Default route
                     webRequestHandler.register(".*", new FileRequestHandler(webroot));
 
-                    // map route
+                    // Map route
                     for (var mapConfigEntry : configManager.getMapConfigs().entrySet()) {
                         String id = mapConfigEntry.getKey();
                         MapConfig mapConfig = mapConfigEntry.getValue();
@@ -211,7 +209,7 @@ public class Plugin implements ServerEventListener {
                         );
                     }
 
-                    // create web-logger
+                    // Create web-logger
                     List<Logger> webLoggerList = new ArrayList<>();
                     if (webserverConfig.getLog().getFile() != null) {
                         ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
@@ -241,40 +239,43 @@ public class Plugin implements ServerEventListener {
                                 "This usually happens when the configured port (" + webserverConfig.getPort() + ") is already in use by some other program.", ex);
                     } catch (IOException ex) {
                         throw new ConfigurationException("""
-                                BlueMap failed to initialize the webserver.
-                                Check your webserver-config if everything is configured correctly.
-                                (Make sure you DON'T use the same port for bluemap that you also use for your minecraft server)
-                                """.strip(), ex);
+                            BlueMap failed to initialize the webserver.
+                            Check your webserver-config if everything is configured correctly.
+                            (Make sure you DON'T use the same port for bluemap that you also use for your minecraft server)
+                            """.strip(), ex);
                     }
                 }
 
-                //warn if no maps are configured
+                // Warn if no maps are configured
                 if (maps.isEmpty()) {
                     Logger.global.logWarning("There are no valid maps configured, please check your map-configs! Disabling BlueMap...");
                     unload(true);
                     return;
                 }
 
-                //initialize render manager
+                // Initialize render manager
                 renderManager = new RenderManager();
 
-                //update all maps
+                // Update all maps
                 maps.values().stream()
                         .sorted(Comparator.comparing(bmMap -> bmMap.getMapSettings().getSorting()))
                         .forEach(map -> {
-                    if (pluginState.getMapState(map).isUpdateEnabled()) {
-                        renderManager.scheduleRenderTask(new MapUpdateTask(map));
-                    }
-                });
+                            if (pluginState.getMapState(map).isUpdateEnabled()) {
+                                renderManager.scheduleRenderTask(new MapUpdateTask(map));
+                            }
+                        });
 
-                //update webapp and settings
+                // Update webapp and settings
                 if (webappConfig.isEnabled())
                     blueMap.createOrUpdateWebApp(false);
 
-                //init timer
+                // Initialize timer
                 daemonTimer = new Timer("BlueMap-Plugin-DaemonTimer", true);
 
-                //periodically save
+                // Schedule the daily map reload at 2 AM
+                scheduleDailyMapReload();
+
+                // Periodically save
                 TimerTask saveTask = new TimerTask() {
                     @Override
                     public void run() {
@@ -283,7 +284,7 @@ public class Plugin implements ServerEventListener {
                 };
                 daemonTimer.schedule(saveTask, TimeUnit.MINUTES.toMillis(10), TimeUnit.MINUTES.toMillis(10));
 
-                //periodically restart the file-watchers
+                // Periodically restart the file-watchers
                 TimerTask fileWatcherRestartTask = new TimerTask() {
                     @Override
                     public void run() {
@@ -294,23 +295,7 @@ public class Plugin implements ServerEventListener {
                 };
                 daemonTimer.schedule(fileWatcherRestartTask, TimeUnit.HOURS.toMillis(1), TimeUnit.HOURS.toMillis(1));
 
-                //periodically update all (non frozen) maps
-                if (pluginConfig.getFullUpdateInterval() > 0) {
-                    long fullUpdateTime = TimeUnit.MINUTES.toMillis(pluginConfig.getFullUpdateInterval());
-                    TimerTask updateAllMapsTask = new TimerTask() {
-                        @Override
-                        public void run() {
-                            for (BmMap map : maps.values()) {
-                                if (pluginState.getMapState(map).isUpdateEnabled()) {
-                                    renderManager.scheduleRenderTask(new MapUpdateTask(map));
-                                }
-                            }
-                        }
-                    };
-                    daemonTimer.scheduleAtFixedRate(updateAllMapsTask, fullUpdateTime, fullUpdateTime);
-                }
-
-                //metrics
+                // Metrics
                 MinecraftVersion minecraftVersion = blueMap.getOrLoadMinecraftVersion();
                 TimerTask metricsTask = new TimerTask() {
                     @Override
@@ -321,25 +306,25 @@ public class Plugin implements ServerEventListener {
                 };
                 daemonTimer.scheduleAtFixedRate(metricsTask, TimeUnit.MINUTES.toMillis(1), TimeUnit.MINUTES.toMillis(30));
 
-                //watch map-changes
+                // Watch map-changes
                 this.mapUpdateServices = new HashMap<>();
                 initFileWatcherTasks();
 
-                //register listener
+                // Register listener
                 serverInterface.registerListener(this);
 
-                //enable api
+                // Enable API
                 this.api = new BlueMapAPIImpl(this);
                 this.api.register();
 
-                //start render-manager
+                // Start render-manager
                 if (pluginState.isRenderThreadsEnabled()) {
                     checkPausedByPlayerCount(); // <- this also starts the render-manager if it should start
                 } else {
                     Logger.global.logInfo("Render-Threads are STOPPED! Use the command 'bluemap start' to start them.");
                 }
 
-                //done
+                // Done
                 loaded = true;
             }
         } catch (ConfigurationException ex) {
@@ -582,4 +567,25 @@ public class Plugin implements ServerEventListener {
         }
     }
 
+    private void scheduleDailyMapReload() {
+        TimerTask reloadMapTask = new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    reload(); // Reload maps
+                } catch (IOException e) {
+                    Logger.global.logError("Failed to reload maps at scheduled time", e);
+                }
+            }
+        };
+
+        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime nextRun = now.withHour(2).withMinute(0).withSecond(0).withNano(0);
+        if (now.isAfter(nextRun)) {
+            nextRun = nextRun.plusDays(1);
+        }
+        long initialDelay = java.time.Duration.between(now, nextRun).toMillis();
+
+        daemonTimer.scheduleAtFixedRate(reloadMapTask, initialDelay, TimeUnit.DAYS.toMillis(1));
+    }
 }

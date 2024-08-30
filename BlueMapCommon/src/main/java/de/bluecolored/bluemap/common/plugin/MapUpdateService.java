@@ -81,7 +81,7 @@ public class MapUpdateService extends Thread {
     }
 
     private synchronized void updateRegion(Vector2i regionPos) {
-        // we only want to start the render when there were no changes on a file for 5 seconds
+        // we only want to start the render when there were no changes on a file for 30 seconds
         TimerTask task = scheduledUpdates.remove(regionPos);
         if (task != null) task.cancel();
 
@@ -98,7 +98,7 @@ public class MapUpdateService extends Thread {
             }
         };
         scheduledUpdates.put(regionPos, task);
-        delayTimer.schedule(task, 5000);
+        delayTimer.schedule(task, 30000);
     }
 
     public void close() {

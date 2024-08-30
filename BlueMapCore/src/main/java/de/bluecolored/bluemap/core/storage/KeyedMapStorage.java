@@ -36,8 +36,6 @@ public abstract class KeyedMapStorage implements MapStorage {
     private static final Key CHUNK_STATE_KEY = Key.bluemap("chunk-state");
     private static final Key SETTINGS_KEY = Key.bluemap("settings");
     private static final Key TEXTURES_KEY = Key.bluemap("textures");
-    private static final Key MARKERS_KEY = Key.bluemap("markers");
-    private static final Key PLAYERS_KEY = Key.bluemap("players");
 
     private final Compression compression;
 
@@ -74,16 +72,6 @@ public abstract class KeyedMapStorage implements MapStorage {
     @Override
     public ItemStorage textures() {
         return item(TEXTURES_KEY, compression);
-    }
-
-    @Override
-    public ItemStorage markers() {
-        return item(MARKERS_KEY, Compression.NONE);
-    }
-
-    @Override
-    public ItemStorage players() {
-        return item(PLAYERS_KEY, Compression.NONE);
     }
 
     /**

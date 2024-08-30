@@ -28,8 +28,6 @@ import com.flowpowered.math.vector.Vector2i;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import de.bluecolored.bluemap.api.gson.MarkerGson;
-import de.bluecolored.bluemap.api.markers.MarkerSet;
 import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.map.hires.HiresModelManager;
 import de.bluecolored.bluemap.core.map.lowres.LowresTileManager;
@@ -77,8 +75,6 @@ public class BmMap {
     private final HiresModelManager hiresModelManager;
     private final LowresTileManager lowresTileManager;
 
-    private final ConcurrentHashMap<String, MarkerSet> markerSets;
-
     @Setter private Predicate<Vector2i> tileFilter;
 
     @Getter(AccessLevel.NONE) private long renderTimeSumNanos;
@@ -121,8 +117,6 @@ public class BmMap {
 
         this.tileFilter = t -> true;
 
-        this.markerSets = new ConcurrentHashMap<>();
-
         this.renderTimeSumNanos = 0;
         this.tilesRendered = 0;
         this.lastSaveTime = -1;
@@ -161,8 +155,6 @@ public class BmMap {
         lowresTileManager.save();
         mapTileState.save();
         mapChunkState.save();
-        saveMarkerState();
-        savePlayerState();
         saveMapSettings();
 
         // only save texture gallery if not present in storage
@@ -208,25 +200,6 @@ public class BmMap {
             GSON.toJson(this, writer);
         } catch (Exception ex) {
             Logger.global.logError("Failed to save settings for map '" + getId() + "'!", ex);
-        }
-    }
-
-    public synchronized void saveMarkerState() {
-        try (
-                OutputStream out = storage.markers().write();
-                Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)
-        ) {
-            MarkerGson.INSTANCE.toJson(this.markerSets, writer);
-        } catch (Exception ex) {
-            Logger.global.logError("Failed to save markers for map '" + getId() + "'!", ex);
-        }
-    }
-
-    public synchronized void savePlayerState() {
-        try (OutputStream out = storage.players().write()) {
-            out.write("{}".getBytes(StandardCharsets.UTF_8));
-        } catch (Exception ex) {
-            Logger.global.logError("Failed to save markers for map '" + getId() + "'!", ex);
         }
     }
 

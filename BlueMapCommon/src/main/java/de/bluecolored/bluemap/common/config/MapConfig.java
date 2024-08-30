@@ -80,8 +80,6 @@ public class MapConfig implements MapSettings {
 
     private boolean ignoreMissingLightData = false;
 
-    @Nullable private ConfigurationNode markerSets = null;
-
     // hidden config fields
     private int hiresTileSize = 32;
     private int lowresTileSize = 500;

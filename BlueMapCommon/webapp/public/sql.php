@@ -26,9 +26,7 @@ $compressionHeaderMap = [
 // meta files
 $metaFileKeys = [
     "settings.json" => "bluemap:settings",
-    "textures.json" => "bluemap:textures",
-    "live/markers.json" => "bluemap:markers",
-    "live/players.json" => "bluemap:players",
+    "textures.json" => "bluemap:textures"
 ];
 
 // mime-types for meta-files

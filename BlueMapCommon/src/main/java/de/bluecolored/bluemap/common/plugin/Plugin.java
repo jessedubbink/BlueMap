@@ -32,8 +32,6 @@ import de.bluecolored.bluemap.common.addons.Addons;
 import de.bluecolored.bluemap.common.api.BlueMapAPIImpl;
 import de.bluecolored.bluemap.common.config.*;
 import de.bluecolored.bluemap.common.debug.StateDumper;
-import de.bluecolored.bluemap.common.live.LivePlayersDataSupplier;
-import de.bluecolored.bluemap.common.plugin.skins.PlayerSkinUpdater;
 import de.bluecolored.bluemap.common.rendermanager.MapUpdateTask;
 import de.bluecolored.bluemap.common.rendermanager.RenderManager;
 import de.bluecolored.bluemap.common.serverinterface.Server;
@@ -57,9 +55,6 @@ import org.spongepowered.configurate.gson.GsonConfigurationLoader;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -70,7 +65,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 @Getter
@@ -98,7 +92,6 @@ public class Plugin implements ServerEventListener {
 
     private Timer daemonTimer;
     private Map<String, MapUpdateService> mapUpdateServices;
-    private PlayerSkinUpdater skinUpdater;
 
     private boolean loaded = false;
 
@@ -202,19 +195,19 @@ public class Plugin implements ServerEventListener {
                         String id = mapConfigEntry.getKey();
                         MapConfig mapConfig = mapConfigEntry.getValue();
 
-                        MapRequestHandler mapRequestHandler;
+                        RoutingRequestHandler routingRequestHandler;
                         BmMap map = maps.get(id);
                         if (map != null) {
-                            mapRequestHandler = new MapRequestHandler(map, serverInterface, pluginConfig, Predicate.not(pluginState::isPlayerHidden));
+                            routingRequestHandler = new MapRequestHandler(map.getStorage());
                         } else {
                             Storage storage = blueMap.getOrLoadStorage(mapConfig.getStorage());
-                            mapRequestHandler = new MapRequestHandler(storage.map(id));
+                            routingRequestHandler = new MapRequestHandler(storage.map(id));
                         }
 
                         webRequestHandler.register(
                                 "maps/" + Pattern.quote(id) + "/(.*)",
                                 "$1",
-                                new BlueMapResponseModifier(mapRequestHandler)
+                                new BlueMapResponseModifier(routingRequestHandler)
                         );
                     }
 
@@ -278,12 +271,6 @@ public class Plugin implements ServerEventListener {
                 if (webappConfig.isEnabled())
                     blueMap.createOrUpdateWebApp(false);
 
-                //start skin updater
-                this.skinUpdater = new PlayerSkinUpdater(this);
-                if (pluginConfig.isLivePlayerMarkers()) {
-                    serverInterface.registerListener(skinUpdater);
-                }
-
                 //init timer
                 daemonTimer = new Timer("BlueMap-Plugin-DaemonTimer", true);
 
@@ -295,30 +282,6 @@ public class Plugin implements ServerEventListener {
                     }
                 };
                 daemonTimer.schedule(saveTask, TimeUnit.MINUTES.toMillis(10), TimeUnit.MINUTES.toMillis(10));
-
-                //periodically save markers
-                int writeMarkersInterval = pluginConfig.getWriteMarkersInterval();
-                if (writeMarkersInterval > 0) {
-                    TimerTask saveMarkersTask = new TimerTask() {
-                        @Override
-                        public void run() {
-                            saveMarkerStates();
-                        }
-                    };
-                    daemonTimer.schedule(saveMarkersTask, TimeUnit.SECONDS.toMillis(writeMarkersInterval), TimeUnit.SECONDS.toMillis(writeMarkersInterval));
-                }
-
-                //periodically save players
-                int writePlayersInterval = pluginConfig.getWritePlayersInterval();
-                if (writePlayersInterval > 0) {
-                    TimerTask savePlayersTask = new TimerTask() {
-                        @Override
-                        public void run() {
-                            savePlayerStates();
-                        }
-                    };
-                    daemonTimer.schedule(savePlayersTask, TimeUnit.SECONDS.toMillis(writePlayersInterval), TimeUnit.SECONDS.toMillis(writePlayersInterval));
-                }
 
                 //periodically restart the file-watchers
                 TimerTask fileWatcherRestartTask = new TimerTask() {
@@ -405,7 +368,6 @@ public class Plugin implements ServerEventListener {
 
                 //unregister listeners
                 serverInterface.unregisterAllListeners();
-                skinUpdater = null;
 
                 //stop scheduled threads
                 if (daemonTimer != null) daemonTimer.cancel();
@@ -531,39 +493,6 @@ public class Plugin implements ServerEventListener {
         var maps = blueMap.getMaps();
         for (BmMap map : maps.values()) {
             map.save();
-        }
-    }
-
-    public void saveMarkerStates() {
-        if (blueMap == null) return;
-
-        var maps = blueMap.getMaps();
-        for (BmMap map : maps.values()) {
-            map.saveMarkerState();
-        }
-    }
-
-    public void savePlayerStates() {
-        if (blueMap == null) return;
-
-        var maps = blueMap.getMaps();
-        for (BmMap map : maps.values()) {
-            var serverWorld = serverInterface.getServerWorld(map.getWorld()).orElse(null);
-            if (serverWorld == null) continue;
-            var dataSupplier = new LivePlayersDataSupplier(
-                    serverInterface,
-                    getBlueMap().getConfig().getPluginConfig(),
-                    serverWorld,
-                    Predicate.not(pluginState::isPlayerHidden)
-            );
-            try (
-                    OutputStream out = map.getStorage().players().write();
-                    Writer writer = new OutputStreamWriter(out)
-            ) {
-                writer.write(dataSupplier.get());
-            } catch (Exception ex) {
-                Logger.global.logError("Failed to save players for map '" + map.getId() + "'!", ex);
-            }
         }
     }
 

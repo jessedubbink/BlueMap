@@ -63,22 +63,6 @@ export * from "./map/hires/HiresVertexShader";
 export * from "./map/lowres/LowresFragmentShader";
 export * from "./map/lowres/LowresVertexShader";
 
-export * from "./markers/ExtrudeMarker";
-export * from "./markers/HtmlMarker";
-export * from "./markers/LineMarker";
-export * from "./markers/Marker";
-export * from "./markers/MarkerFillFragmentShader";
-export * from "./markers/MarkerFillVertexShader";
-export * from "./markers/MarkerManager";
-export * from "./markers/MarkerSet";
-export * from "./markers/NormalMarkerManager";
-export * from "./markers/ObjectMarker";
-export * from "./markers/PlayerMarker";
-export * from "./markers/PlayerMarkerManager";
-export * from "./markers/PlayerMarkerSet";
-export * from "./markers/PoiMarker";
-export * from "./markers/ShapeMarker";
-
 export * from "./skybox/SkyFragmentShader";
 export * from "./skybox/SkyVertexShader";
 export * from "./skybox/SkyboxScene";
@@ -92,7 +76,6 @@ export * from "./util/Utils";
 export * from "./BlueMapApp";
 export * from "./MainMenu";
 export * from "./MapViewer";
-export * from "./PopupMarker";
 export * from "./Utils";
 
 /**

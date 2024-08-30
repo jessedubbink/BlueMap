@@ -7,7 +7,6 @@
 
     <div v-if="menu.currentPage().id === 'root'">
       <SimpleButton @action="menu.openPage('maps', () => $t('maps.title'))" :submenu="true">{{ $t("maps.button") }}</SimpleButton>
-      <SimpleButton @action="menu.openPage('markers', () => $t('markers.title'), {markerSet: markers})" :submenu="true">{{ $t("markers.button") }}</SimpleButton>
       <SimpleButton @action="menu.openPage('settings', () => $t('settings.title'))" :submenu="true">{{ $t("settings.button") }}</SimpleButton>
       <SimpleButton @action="menu.openPage('info', () => $t('info.title'))" :submenu="true">{{ $t("info.button") }}</SimpleButton>
       <hr>
@@ -20,8 +19,6 @@
     <div v-if="menu.currentPage().id === 'maps'">
       <MapButton v-for="map of appState.maps" :key="map.id" :map="map" />
     </div>
-
-    <MarkerSetMenu v-if="menu.currentPage().id === 'markers'" :menu="menu" />
 
     <SettingsMenu v-if="menu.currentPage().id === 'settings'" />
 
@@ -37,19 +34,17 @@ import SideMenu from "./SideMenu.vue";
 import SimpleButton from "./SimpleButton.vue";
 import SettingsMenu from "./SettingsMenu.vue";
 import {MainMenu} from "../../js/MainMenu";
-import MarkerSetMenu from "./MarkerSetMenu.vue";
 import MapButton from "./MapButton.vue";
 
 export default {
   name: "MainMenu",
-  components: {MapButton, MarkerSetMenu, SettingsMenu, SimpleButton, SideMenu},
+  components: {MapButton, SettingsMenu, SimpleButton, SideMenu},
   props: {
     menu: MainMenu
   },
   data() {
     return {
       appState: this.$bluemap.appState,
-      markers: this.$bluemap.mapViewer.markers.data,
     }
   },
   methods: {

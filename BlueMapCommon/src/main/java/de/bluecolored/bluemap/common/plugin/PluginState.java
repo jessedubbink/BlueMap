@@ -35,7 +35,6 @@ public class PluginState {
 
     private boolean renderThreadsEnabled = true;
     private Map<String, MapState> maps = new HashMap<>();
-    private Set<UUID> hiddenPlayers = new HashSet<>();
 
     public boolean isRenderThreadsEnabled() {
         return renderThreadsEnabled;
@@ -47,18 +46,6 @@ public class PluginState {
 
     public MapState getMapState(BmMap map) {
         return maps.computeIfAbsent(map.getId(), k -> new MapState());
-    }
-
-    public void addHiddenPlayer(UUID player) {
-        hiddenPlayers.add(player);
-    }
-
-    public void removeHiddenPlayer(UUID player) {
-        hiddenPlayers.remove(player);
-    }
-
-    public boolean isPlayerHidden(UUID player) {
-        return hiddenPlayers.contains(player);
     }
 
     @ConfigSerializable

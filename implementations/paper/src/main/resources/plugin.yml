@@ -19,7 +19,6 @@ permissions:
       bluemap.start: true
       bluemap.freeze: true
       bluemap.purge: true
-      bluemap.marker: true
       bluemap.update: true
       bluemap.debug: true
     default: op

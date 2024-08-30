@@ -33,8 +33,6 @@ import java.util.List;
 @ConfigSerializable
 public class PluginConfig {
 
-    private boolean livePlayerMarkers = true;
-
     private List<String> hiddenGameModes = new ArrayList<>();
     private boolean hideVanished = true;
     private boolean hideInvisible = true;
@@ -43,18 +41,11 @@ public class PluginConfig {
     private int hideBelowSkyLight = 0;
     private int hideBelowBlockLight = 0;
 
-    private int writeMarkersInterval = 0;
-    private int writePlayersInterval = 0;
-
     private boolean skinDownload = true;
 
     private int playerRenderLimit = -1;
 
     private int fullUpdateInterval = 1440;
-
-    public boolean isLivePlayerMarkers() {
-        return livePlayerMarkers;
-    }
 
     public List<String> getHiddenGameModes() {
         return hiddenGameModes;
@@ -82,14 +73,6 @@ public class PluginConfig {
 
     public int getHideBelowBlockLight() {
         return hideBelowBlockLight;
-    }
-
-    public int getWriteMarkersInterval() {
-        return writeMarkersInterval;
-    }
-
-    public int getWritePlayersInterval() {
-        return writePlayersInterval;
     }
 
     public boolean isSkinDownload() {

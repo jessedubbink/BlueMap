@@ -64,20 +64,12 @@ public class WebAppImpl implements WebApp {
 
     @Override
     public void setPlayerVisibility(UUID player, boolean visible) {
-        if (plugin == null) return; // fail silently: not supported on non-plugin platforms
-
-        if (visible) {
-            plugin.getPluginState().removeHiddenPlayer(player);
-        } else {
-            plugin.getPluginState().addHiddenPlayer(player);
-        }
+        return;
     }
 
     @Override
     public boolean getPlayerVisibility(UUID player) {
-        if (plugin == null) return false; // fail silently: not supported on non-plugin platforms
-
-        return !plugin.getPluginState().isPlayerHidden(player);
+        return false;
     }
 
     @Override

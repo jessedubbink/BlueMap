@@ -30,12 +30,8 @@ import {FileLoader, MathUtils, Vector3} from "three";
 import {Map as BlueMapMap} from "./map/Map";
 import {alert, animate, EasingFunctions, generateCacheHash} from "./util/Utils";
 import {MainMenu} from "./MainMenu";
-import {PopupMarker} from "./PopupMarker";
-import {MarkerSet} from "./markers/MarkerSet";
 import {getLocalStorage, round, setLocalStorage} from "./Utils";
 import {i18n, setLanguage} from "../i18n";
-import {PlayerMarkerManager} from "./markers/PlayerMarkerManager";
-import {NormalMarkerManager} from "./markers/NormalMarkerManager";
 import {reactive} from "vue";
 
 export class BlueMapApp {
@@ -50,11 +46,6 @@ export class BlueMapApp {
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);
-
-        /** @type {PlayerMarkerManager} */
-        this.playerMarkerManager = null;
-        /** @type {NormalMarkerManager} */
-        this.markerFileManager = null;
 
         /** @type {{
          *      version: string,
@@ -111,15 +102,6 @@ export class BlueMapApp {
         // init
         this.updateControlsSettings();
         this.initGeneralEvents();
-
-        // popup on click
-        this.popupMarkerSet = new MarkerSet("bm-popup-set");
-        this.popupMarkerSet.data.toggleable = false;
-        this.popupMarker = new PopupMarker("bm-popup", this.appState, this.events);
-        this.popupMarkerSet.add(this.popupMarker);
-        this.mapViewer.markers.add(this.popupMarkerSet);
-
-        this.updateLoop = null;
 
         this.hashUpdateTimeout = null;
         this.viewAnimation = null;
@@ -195,56 +177,6 @@ export class BlueMapApp {
         }
     }
 
-    update = async () => {
-        await this.followPlayerMarkerWorld();
-        this.updateLoop = setTimeout(this.update, 1000);
-    }
-
-    async followPlayerMarkerWorld() {
-        /** @type {PlayerLike} */
-        let player = this.mapViewer.controlsManager.controls?.data.followingPlayer;
-
-        if (this.mapViewer.map && player) {
-            if (player.foreign){
-
-                let matchingMap = await this.findPlayerMap(player.playerUuid)
-                if (matchingMap) {
-                    this.mainMenu.closeAll();
-                    await this.switchMap(matchingMap.data.id, false);
-                    let playerMarker = this.playerMarkerManager.getPlayerMarker(player.playerUuid);
-                    if (playerMarker && this.mapViewer.controlsManager.controls.followPlayerMarker)
-                        this.mapViewer.controlsManager.controls.followPlayerMarker(playerMarker);
-                } else {
-                    if (this.mapViewer.controlsManager.controls.stopFollowingPlayerMarker)
-                        this.mapViewer.controlsManager.controls.stopFollowingPlayerMarker();
-                }
-            }
-        }
-    }
-
-    async findPlayerMap(playerUuid) {
-        /** @type BlueMapMap */
-        let matchingMap = null;
-
-        // search for the map that contains the player
-        if (this.maps.length < 20) {
-            for (let map of this.maps) {
-                let playerData = await this.loadPlayerData(map);
-                if (!Array.isArray(playerData.players)) continue;
-                for (let p of playerData.players) {
-                    if (p.uuid === playerUuid && !p.foreign) {
-                        matchingMap = map;
-                        break;
-                    }
-                }
-
-                if (matchingMap) break;
-            }
-        }
-
-        return matchingMap;
-    }
-
     /**
      * @param mapId {String}
      * @param resetCamera {boolean}
@@ -254,18 +186,10 @@ export class BlueMapApp {
         let map = this.mapsMap.get(mapId);
         if (!map) return Promise.reject(`There is no map with the id "${mapId}" loaded!`);
 
-        if (this.playerMarkerManager) this.playerMarkerManager.dispose();
-        if (this.markerFileManager) this.markerFileManager.dispose();
-
         await this.mapViewer.switchMap(map)
 
         if (resetCamera) this.resetCamera();
         this.updatePageAddress();
-
-        await Promise.all([
-            this.initPlayerMarkerManager(),
-            this.initMarkerFileManager()
-        ]);
     }
 
     resetCamera() {
@@ -343,62 +267,6 @@ export class BlueMapApp {
                 () => reject("Failed to load the settings.json!")
             );
         });
-    }
-
-    /**
-     * @param map {BlueMapMap}
-     * @returns {Promise<Object>}
-     */
-    loadPlayerData(map) {
-        return new Promise((resolve, reject) => {
-            let loader = new FileLoader();
-            loader.setResponseType("json");
-            loader.load(map.data.dataUrl + "live/players.json?" + generateCacheHash(),
-                fileData => {
-                    if (!fileData) reject(`Failed to parse '${this.fileUrl}'!`);
-                    else resolve(fileData);
-                },
-                () => {},
-                () => reject(`Failed to load '${this.fileUrl}'!`)
-            )
-        });
-    }
-
-    initPlayerMarkerManager() {
-        if (this.playerMarkerManager)
-            this.playerMarkerManager.dispose()
-
-        const map = this.mapViewer.map;
-        if (!map) return;
-
-        this.playerMarkerManager = new PlayerMarkerManager(this.mapViewer.markers, map.data.dataUrl + "live/players.json", map.data.dataUrl + "assets/playerheads/", this.events);
-        this.playerMarkerManager.setAutoUpdateInterval(0);
-        return this.playerMarkerManager.update()
-            .then(() => {
-                this.playerMarkerManager.setAutoUpdateInterval(1000);
-            })
-            .catch(e => {
-                alert(this.events, e, "warning");
-                this.playerMarkerManager.dispose();
-            });
-    }
-
-    initMarkerFileManager() {
-        if (this.markerFileManager)
-            this.markerFileManager.dispose();
-
-        const map = this.mapViewer.map;
-        if (!map) return;
-
-        this.markerFileManager = new NormalMarkerManager(this.mapViewer.markers, map.data.dataUrl + "live/markers.json", this.events);
-        return this.markerFileManager.update()
-            .then(() => {
-                this.markerFileManager.setAutoUpdateInterval(1000 * 10);
-            })
-            .catch(e => {
-                alert(this.events, e, "warning");
-                this.markerFileManager.dispose();
-            });
     }
 
     updateControlsSettings() {

@@ -65,16 +65,6 @@ public interface MapStorage {
     ItemStorage textures();
 
     /**
-     * Returns a {@link ItemStorage} for the marker-data (live/markers.json) of this map
-     */
-    ItemStorage markers();
-
-    /**
-     * Returns a {@link ItemStorage} for the player-data (live/players.json) of this map
-     */
-    ItemStorage players();
-
-    /**
      * Deletes the entire map from the storage
      */
     default void delete() throws IOException {

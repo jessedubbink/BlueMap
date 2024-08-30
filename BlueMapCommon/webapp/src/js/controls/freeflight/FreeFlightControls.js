@@ -45,10 +45,6 @@ export class FreeFlightControls {
         this.target = target;
         this.manager = null;
 
-        this.data = reactive({
-            followingPlayer: null
-        });
-
         this.hammer = new Manager(this.target);
         this.initializeHammer();
 
@@ -112,22 +108,6 @@ export class FreeFlightControls {
         this.mouseAngle.update(delta, map);
         this.touchPan.update(delta, map);
 
-        // if moved, stop following the marker and give back control
-        if (this.data.followingPlayer && (
-            !FreeFlightControls._beforeMoveTemp.equals(this.manager.position) ||
-            beforeMoveRot !== this.manager.rotation ||
-            beforeMoveAngle !== this.manager.angle
-        )) {
-            this.stopFollowingPlayerMarker();
-        }
-
-        // follow player marker
-        if (this.data.followingPlayer) {
-            this.manager.position.copy(this.data.followingPlayer.position);
-            this.manager.rotation = (this.data.followingPlayer.rotation.yaw - 180) * DEG2RAD;
-            this.manager.angle = -(this.data.followingPlayer.rotation.pitch - 90) * DEG2RAD;
-        }
-
         this.manager.angle = MathUtils.clamp(this.manager.angle, 0, Math.PI);
         this.manager.distance = 0;
         this.manager.ortho = 0;
@@ -154,19 +134,6 @@ export class FreeFlightControls {
             .finally(() => {
                 this.target.requestPointerLock();
             });
-    }
-
-    /**
-     * @param marker {object}
-     */
-    followPlayerMarker(marker) {
-        if (marker.isPlayerMarker) marker = marker.data;
-        this.data.followingPlayer = marker;
-        this.keyMove.deltaPosition.set(0, 0);
-    }
-
-    stopFollowingPlayerMarker() {
-        this.data.followingPlayer = null;
     }
 
     onWheel = evt => {

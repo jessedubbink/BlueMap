@@ -39,22 +39,22 @@ public class PluginImpl implements de.bluecolored.bluemap.api.plugin.Plugin {
 
     @Override
     public SkinProvider getSkinProvider() {
-        return plugin.getSkinUpdater().getSkinProvider();
+        return null;
     }
 
     @Override
     public void setSkinProvider(SkinProvider skinProvider) {
-        plugin.getSkinUpdater().setSkinProvider(skinProvider);
+        return;
     }
 
     @Override
     public PlayerIconFactory getPlayerMarkerIconFactory() {
-        return plugin.getSkinUpdater().getPlayerMarkerIconFactory();
+        return null;
     }
 
     @Override
     public void setPlayerMarkerIconFactory(PlayerIconFactory playerMarkerIconFactory) {
-        plugin.getSkinUpdater().setPlayerMarkerIconFactory(playerMarkerIconFactory);
+        return;
     }
 
     public Plugin getPlugin() {

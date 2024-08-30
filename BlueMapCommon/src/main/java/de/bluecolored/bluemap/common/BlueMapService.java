@@ -29,8 +29,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
-import de.bluecolored.bluemap.api.gson.MarkerGson;
-import de.bluecolored.bluemap.api.markers.MarkerSet;
 import de.bluecolored.bluemap.common.config.ConfigurationException;
 import de.bluecolored.bluemap.common.config.MapConfig;
 import de.bluecolored.bluemap.common.config.storage.StorageConfig;
@@ -237,7 +235,6 @@ public class BlueMapService implements Closeable {
         Storage storage = getOrLoadStorage(mapConfig.getStorage());
 
         try {
-
             Logger.global.logInfo("Loading map '" + id + "'...");
             BmMap map = new BmMap(
                     id,
@@ -248,28 +245,6 @@ public class BlueMapService implements Closeable {
                     mapConfig
             );
             maps.put(id, map);
-
-            // load marker-config by converting it first from hocon to json and then loading it with MarkerGson
-            ConfigurationNode markerSetNode = mapConfig.getMarkerSets();
-            if (markerSetNode != null && !markerSetNode.empty()) {
-                String markerJson = GsonConfigurationLoader.builder()
-                        .headerMode(HeaderMode.NONE)
-                        .lenient(false)
-                        .indent(0)
-                        .buildAndSaveString(markerSetNode);
-                Gson gson = MarkerGson.addAdapters(new GsonBuilder())
-                        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_DASHES)
-                        .create();
-                Type markerSetType = new TypeToken<Map<String, MarkerSet>>() {}.getType();
-                Map<String, MarkerSet> markerSets = gson.fromJson(markerJson, markerSetType);
-                map.getMarkerSets().putAll(markerSets);
-            }
-
-        } catch (ConfigurateException | JsonParseException ex) {
-            throw new ConfigurationException(
-                    "Failed to create the markers for map '" + id + "'!\n" +
-                    "Make sure your marker-configuration for this map is valid.",
-                    ex);
         } catch (IOException | ConfigurationException ex) {
             throw new ConfigurationException("Failed to load map '" + id + "'!", ex);
         }

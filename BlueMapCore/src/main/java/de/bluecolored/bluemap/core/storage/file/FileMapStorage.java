@@ -137,16 +137,6 @@ public class FileMapStorage implements MapStorage {
     }
 
     @Override
-    public ItemStorage markers() {
-        return new FileItemStorage(root.resolve(LIVE_PATH).resolve("markers.json"), Compression.NONE, atomic);
-    }
-
-    @Override
-    public ItemStorage players() {
-        return new FileItemStorage(root.resolve(LIVE_PATH).resolve("players.json"), Compression.NONE, atomic);
-    }
-
-    @Override
     public void delete(DoublePredicate onProgress) throws IOException {
         if (!Files.exists(root)) return;
 

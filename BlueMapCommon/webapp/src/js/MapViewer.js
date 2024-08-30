@@ -35,7 +35,6 @@ import {LOWRES_VERTEX_SHADER} from "./map/lowres/LowresVertexShader";
 import {LOWRES_FRAGMENT_SHADER} from "./map/lowres/LowresFragmentShader";
 import {CombinedCamera} from "./util/CombinedCamera";
 import {CSS2DRenderer} from "./util/CSS2DRenderer";
-import {MarkerSet} from "./markers/MarkerSet";
 import {reactive} from "vue";
 
 export class MapViewer {
@@ -111,8 +110,6 @@ export class MapViewer {
 		/** @type {Map} */
 		this.map = null;
 
-		this.markers = new MarkerSet("bm-root");
-
 		this.lastFrame = 0;
 		this.lastRedrawChange = 0;
 		events.addEventListener("bluemapCameraMoved", this.redraw)
@@ -140,13 +137,6 @@ export class MapViewer {
 		// 3d-canvas
 		outerDiv.appendChild(this.renderer.domElement);
 
-		// html-markers
-		this.css2dRenderer.domElement.style.position = 'absolute';
-		this.css2dRenderer.domElement.style.top = '0';
-		this.css2dRenderer.domElement.style.left = '0';
-		this.css2dRenderer.domElement.style.pointerEvents = 'none';
-		outerDiv.appendChild(this.css2dRenderer.domElement);
-
 		// performance monitor
 		outerDiv.appendChild(this.stats.dom);
 
@@ -167,105 +157,6 @@ export class MapViewer {
 
 		this.redraw();
 	};
-
-	/**
-	 * Triggers an interaction on the screen (map), e.g. a mouse-click.
-	 *
-	 * This will first attempt to invoke the onClick() method on the Object3D (e.g. Markers) that has been clicked.
-	 * And if none of those consumed the event, it will fire a <code>bluemapMapInteraction</code> event.
-	 *
-	 * @param screenPosition {Vector2} - Clicked position on the screen (usually event.x, event.y)
-	 * @param data {object} - Custom event data that will be added to the interaction-event
-	 */
-	handleMapInteraction(screenPosition, data = {}) {
-		let rootOffset = elementOffset(this.rootElement);
-		let normalizedScreenPos = new Vector2(
-			((screenPosition.x - rootOffset.left) / this.rootElement.clientWidth) * 2 - 1,
-			-((screenPosition.y - rootOffset.top) / this.rootElement.clientHeight) * 2 + 1
-		);
-
-		if (this.map && this.map.isLoaded){
-			this.camera.updateMatrixWorld()
-			this.raycaster.setFromCamera(normalizedScreenPos, this.camera);
-
-			// check Object3D interactions
-
-			// make sure the scene is at 0,0 (render() might have shifted it)
-			let sPos = this.map.hiresTileManager.scene.position;
-			sPos.x = 0; sPos.z = 0;
-			this.map.hiresTileManager.scene.updateMatrixWorld();
-
-			const intersectScenes = [this.map.hiresTileManager.scene, this.markers];
-			for (let i = 0; i < this.map.lowresTileManager.length; i++) {
-
-				// make sure the scene is at 0,0 (render() might have shifted it)
-				let sPos = this.map.lowresTileManager[i].scene.position;
-				sPos.x = 0; sPos.z = 0;
-				this.map.lowresTileManager[i].scene.updateMatrixWorld();
-
-				intersectScenes.push(this.map.lowresTileManager[i].scene);
-			}
-
-			let intersects = this.raycaster.intersectObjects(intersectScenes, true);
-			let hit = null;
-			let lowresHits = [];
-			let hiresHit = null;
-			let covered = false;
-
-			for (let i = 0; i < intersects.length; i++) {
-				if (intersects[i].object){
-					let object = intersects[i].object;
-
-					// check if deeply-visible
-					let parent = object;
-					let visible = parent.visible;
-					while (visible && parent.parent){
-						parent = parent.parent;
-						visible = parent.visible;
-					}
-
-					if (visible) {
-						if (!hit) hit = intersects[i];
-
-						// find root-scene
-						let parentRoot = object;
-						while(parentRoot.parent) parentRoot = parentRoot.parent;
-
-						for (let l = 0; l < this.map.lowresTileManager.length; l++) {
-							if (parentRoot === this.map.lowresTileManager[l].sceneParent) {
-								if (!lowresHits[l]) lowresHits[l] = intersects[i];
-							}
-						}
-
-						if (parentRoot === this.map.hiresTileManager.sceneParent) {
-							if (!hiresHit) hiresHit = intersects[i];
-						}
-
-						if (!covered || (object.material && !object.material.depthTest)) {
-							if (object.onClick && object.onClick({
-								data: data,
-								intersection: intersects[i]
-							})) return;
-						}
-
-						if (parentRoot !== this.map.lowresTileManager[0].sceneParent) {
-							covered = true;
-						}
-					}
-				}
-			}
-
-			// fire event
-			dispatchEvent(this.events, "bluemapMapInteraction", {
-				data: data,
-				hit: hit,
-				hiresHit: hiresHit,
-				lowresHits: lowresHits,
-				intersections: intersects,
-				ray: this.raycaster.ray
-			});
-		}
-	}
 
 	/**
 	 * Call to wake up the render-loop and render on high-fps for a while
@@ -383,12 +274,7 @@ export class MapViewer {
 			// shift back
 			this.camera.position.x += sX;
 			this.camera.position.z += sZ;
-
 		}
-
-		// render markers
-		this.renderer.render(this.markers, this.camera);
-		this.css2dRenderer.render(this.markers, this.camera);
 	}
 
 	/**

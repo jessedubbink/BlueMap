@@ -39,7 +39,6 @@ import {TouchMoveControls} from "./touch/TouchMoveControls";
 import {TouchRotateControls} from "./touch/TouchRotateControls";
 import {TouchAngleControls} from "./touch/TouchAngleControls";
 import {TouchZoomControls} from "./touch/TouchZoomControls";
-import {PlayerMarker} from "../../markers/PlayerMarker";
 import {reactive} from "vue";
 
 const HALF_PI = Math.PI * 0.5;
@@ -55,10 +54,6 @@ export class MapControls {
     constructor(rootElement, scrollCaptureElement) {
         this.rootElement = rootElement;
         this.scrollCaptureElement = scrollCaptureElement;
-
-        this.data = reactive({
-            followingPlayer: null
-        });
 
         /** @type {ControlsManager} */
         this.manager = null;
@@ -119,8 +114,6 @@ export class MapControls {
     }
 
     stop() {
-        this.stopFollowingPlayerMarker();
-
         this.rootElement.removeEventListener("contextmenu", this.onContextMenu);
         this.hammer.off("tap", this.onTap);
 
@@ -154,16 +147,6 @@ export class MapControls {
         this.mouseMove.update(delta, map);
         this.keyMove.update(delta, map);
         this.touchMove.update(delta, map);
-
-        // if moved, stop following the marker and give back control
-        if (this.data.followingPlayer && !MapControls._beforeMoveTemp.equals(this.manager.position)) {
-            this.stopFollowingPlayerMarker();
-        }
-
-        // follow player marker
-        if (this.data.followingPlayer) {
-            this.manager.position.copy(this.data.followingPlayer.position);
-        }
 
         // zoom
         this.mouseZoom.update(delta, map);
@@ -238,18 +221,6 @@ export class MapControls {
         this.hammer.add(touchMove);
         this.hammer.add(touchRotate);
         this.hammer.add(touchZoom);
-    }
-
-    /**
-     * @param marker {object}
-     */
-    followPlayerMarker(marker) {
-        if (marker.isPlayerMarker) marker = marker.data;
-        this.data.followingPlayer = marker;
-    }
-
-    stopFollowingPlayerMarker() {
-        this.data.followingPlayer = null;
     }
 
     onContextMenu = evt => {
